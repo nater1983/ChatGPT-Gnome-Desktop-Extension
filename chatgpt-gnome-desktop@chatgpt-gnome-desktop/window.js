@@ -2,7 +2,6 @@ imports.gi.versions.Gtk = '3.0';
 imports.gi.versions.WebKit2 = '4.1';
 
 const GLib = imports.gi.GLib;
-const System = imports.system;
 const Gtk = imports.gi.Gtk;
 const WebKit2 = imports.gi.WebKit2;
 
@@ -26,18 +25,32 @@ function createWindow(x, y) {
     log('Creating window');
     const appWindow = new Gtk.Window({
         type: Gtk.WindowType.TOPLEVEL,
-        //type: null, //Gtk.WindowPosition.POPUP,
         default_width: 350,
         default_height: 550,
         title: 'ChatGPT'
     });
 
-    appWindow.set_decorated(false);
+    appWindow.set_decorated(false); // Keep it undecorated
     appWindow.set_keep_above(true);
 
     log(`Calculated position: x=${x}, y=${y}`);
-
     appWindow.move(x, y);
+
+    // Create draggable area
+    const dragArea = new Gtk.EventBox();
+    dragArea.set_visible_window(false);
+    dragArea.set_above_child(false);
+    dragArea.set_size_request(350, 30); // 30px tall invisible drag bar
+
+    dragArea.connect('button-press-event', (widget, event) => {
+        appWindow.begin_move_drag(
+            event.button,
+            event.x_root,
+            event.y_root,
+            event.time
+        );
+        return true;
+    });
 
     const scrolledWindow = new Gtk.ScrolledWindow();
     const cookieStorage = prepareCookieStorage();
@@ -49,9 +62,15 @@ function createWindow(x, y) {
     scrolledWindow.add(webView);
     webView.load_uri('https://chat.openai.com/chat');
 
-    appWindow.add(scrolledWindow);
+    // Layout: draggable area + web view
+    const vbox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL });
+    vbox.pack_start(dragArea, false, false, 0);
+    vbox.pack_start(scrolledWindow, true, true, 0);
+
+    appWindow.add(vbox);
     appWindow.connect('destroy', () => Gtk.main_quit());
     appWindow.show_all();
+
     log('Window created and shown at calculated position');
 }
 
